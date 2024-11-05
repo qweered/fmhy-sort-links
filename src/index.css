@@ -14,5 +14,24 @@
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.animate-fadeOut {
+  animation: fadeOut 5s ease-in-out forwards;
 }

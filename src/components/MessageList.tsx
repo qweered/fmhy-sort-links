@@ -1,6 +1,7 @@
+import { useState, useEffect, useCallback, memo } from 'react';
 import { ProcessedMessage, StoredLink } from '../types';
 import { extractLinks } from '../utils';
-import { Link as LinkIcon, CheckCircle, ExternalLink } from 'lucide-react';
+import { MessageCard } from './MessageCard/MessageCard';
 
 interface MessageListProps {
   messages: ProcessedMessage[];
@@ -8,84 +9,73 @@ interface MessageListProps {
   processedLinks: StoredLink[];
 }
 
-export function MessageList({ messages, onLinkClick, processedLinks }: MessageListProps) {
-  if (messages.length === 0) return null;
+export const MessageList = memo(({ messages, onLinkClick, processedLinks }: MessageListProps) => {
+  const [visibleMessages, setVisibleMessages] = useState<ProcessedMessage[]>(messages);
+  const [fadingMessages, setFadingMessages] = useState<Set<string>>(new Set());
 
-  const isLinkProcessed = (link: string) => {
+  // Update visible messages when input messages change
+  useEffect(() => {
+    setVisibleMessages(messages);
+  }, [messages]);
+
+  // Check if a link has been processed
+  const isLinkProcessed = useCallback((link: string) => {
     return processedLinks.some(processed => processed.link === link);
-  };
+  }, [processedLinks]);
+
+  // Check if all links in a message have been processed
+  const areAllLinksProcessed = useCallback((message: ProcessedMessage) => {
+    const links = extractLinks(message.content);
+    return links.length > 0 && links.every(isLinkProcessed);
+  }, [isLinkProcessed]);
+
+  // Handle message removal after fade animation
+  const handleFadeComplete = useCallback((messageId: string) => {
+    setVisibleMessages(prev => prev.filter(m => m.id !== messageId));
+    setFadingMessages(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(messageId);
+      return newSet;
+    });
+  }, []);
+
+  // Check for newly processed messages and start their fade animations
+  useEffect(() => {
+    const messagesToFade = visibleMessages.filter(message => 
+      areAllLinksProcessed(message) && !fadingMessages.has(message.id)
+    );
+
+    if (messagesToFade.length > 0) {
+      setFadingMessages(prev => {
+        const newSet = new Set(prev);
+        messagesToFade.forEach(message => newSet.add(message.id));
+        return newSet;
+      });
+    }
+  }, [processedLinks, visibleMessages, areAllLinksProcessed, fadingMessages]);
+
+  if (visibleMessages.length === 0) {
+    return (
+      <div className="text-center text-gray-500 py-8">
+        No messages to process
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {messages.map((message) => {
-        const links = extractLinks(message.content);
-        const contentWithoutLinks = message.content.replace(/(?:<)?https?:\/\/[^\s<>]+(?:>)?/g, '');
-        
-        return (
-          <div key={message.id} className="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-medium">
-                  {message.author[0].toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-gray-900">{message.author}</h3>
-                  <span className="text-sm text-gray-500">
-                    {new Date(message.date).toLocaleString()}
-                  </span>
-                </div>
-                
-                {/* Message content without links */}
-                {contentWithoutLinks.trim() && (
-                  <p className="mt-2 text-gray-600 whitespace-pre-wrap">{contentWithoutLinks}</p>
-                )}
-                
-                {/* Links section */}
-                {links.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {links.map((link, index) => (
-                      <div 
-                        key={index}
-                        className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors"
-                      >
-                        <LinkIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600 truncate">{link}</span>
-                            <a
-                              href={link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-500 hover:text-blue-600"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          </div>
-                        </div>
-                        {isLinkProcessed(link) ? (
-                          <div className="flex items-center gap-1 text-green-500">
-                            <CheckCircle className="w-5 h-5" />
-                            <span className="text-sm font-medium">Processed</span>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => onLinkClick(message.id, link)}
-                            className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                          >
-                            Process
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })}
+      {visibleMessages.map((message) => (
+        <MessageCard
+          key={message.id}
+          message={message}
+          onLinkClick={onLinkClick}
+          isLinkProcessed={isLinkProcessed}
+          onFadeComplete={() => handleFadeComplete(message.id)}
+          shouldFade={fadingMessages.has(message.id)}
+        />
+      ))}
     </div>
   );
-}
+});
+
+MessageList.displayName = 'MessageList';
