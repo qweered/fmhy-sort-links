@@ -1,7 +1,6 @@
-import React from 'react';
 import { ProcessedMessage, StoredLink } from '../types';
 import { extractLinks } from '../utils';
-import { MessageSquare, Link as LinkIcon, CheckCircle, ExternalLink } from 'lucide-react';
+import { Link as LinkIcon, CheckCircle, ExternalLink } from 'lucide-react';
 
 interface MessageListProps {
   messages: ProcessedMessage[];

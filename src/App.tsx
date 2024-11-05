@@ -83,7 +83,13 @@ function App() {
 
   const handleExportLinks = () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    downloadAsJSONL(storedLinks, `processed-links-${timestamp}.jsonl`);
+    const linksForExport = storedLinks.map(link => {
+      const { messageId, ...updatedLink } = link;
+      return updatedLink
+    })
+    downloadAsJSONL(linksForExport, `processed-links-${timestamp}.jsonl`);
+    setStoredLinks([])
+    localStorage.setItem('deletedLinks', '')
   };
 
   return (
